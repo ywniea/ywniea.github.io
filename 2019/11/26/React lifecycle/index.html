@@ -19,7 +19,7 @@
 <meta property="og:image" content="http:&#x2F;&#x2F;yoursite.com&#x2F;2019&#x2F;11&#x2F;26&#x2F;images&#x2F;15740514981665.jpg">
 <meta property="og:image" content="http:&#x2F;&#x2F;yoursite.com&#x2F;2019&#x2F;11&#x2F;26&#x2F;images&#x2F;15740515279013.jpg">
 <meta property="og:image" content="http:&#x2F;&#x2F;yoursite.com&#x2F;2019&#x2F;11&#x2F;26&#x2F;images&#x2F;15740517773124.jpg">
-<meta property="og:updated_time" content="2019-11-26T04:46:53.163Z">
+<meta property="og:updated_time" content="2019-11-26T04:53:11.559Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:image" content="http:&#x2F;&#x2F;yoursite.com&#x2F;2019&#x2F;11&#x2F;26&#x2F;images&#x2F;15740513820273.jpg">
   
@@ -104,18 +104,7 @@
 </ul>
 <h3 id="deprecated-componentWillMount"><a href="#deprecated-componentWillMount" class="headerlink" title="deprecated-componentWillMount"></a>deprecated-componentWillMount</h3><p>在新的react版本中这个函数被废弃了，尽量避免使用。</p>
 <p>题外话：dispatch() 和connect()方法会触发setState()函数的调用。 有人在constructor中调用了某些函数导致路由变化，最终connect(UsersComponent)中的dispatch导致了setState()的调用。</p>
-<blockquote>
-<p>Q: The question is, regarding the sample app I posted, what are the two components in question? You said a dispatch() in one component triggers a setState() in another component. In my example, is that App and Users?</p>
-</blockquote>
-<blockquote>
-<p>A: A route change caused dispatch which caused mounting Users which caused another dispatch in its the constructor. So, dispatch inside connect(Users) caused a setState inside connect(App).</p>
-</blockquote>
-<blockquote>
-<p>Q: And why did dispatch() in one component cause a setState() in another? Is that due to a bad coding pattern, or something internal to React?</p>
-</blockquote>
-<blockquote>
-<p>A: Any time you call dispatch(), all connect()-ed component wrappers have their setState() called so that the connected component receive that new state as their props. It’s just how React Redux works.</p>
-</blockquote>
+<p>Q: The question is, regarding the sample app I posted, what are the two components in question? You said a dispatch() in one component triggers a setState() in another component. In my example, is that App and Users?<br>A: A route change caused dispatch which caused mounting Users which caused another dispatch in its the constructor. So, dispatch inside connect(Users) caused a setState inside connect(App).<br>Q: And why did dispatch() in one component cause a setState() in another? Is that due to a bad coding pattern, or something internal to React?<br>A: Any time you call dispatch(), all connect()-ed component wrappers have their setState() called so that the connected component receive that new state as their props. It’s just how React Redux works.</p>
 <p>但是讲清楚：</p>
 <ul>
 <li>可以使用this.setState()但是尽量将state的赋值放在constructor中。</li>
@@ -144,10 +133,8 @@
 <li>用于同步props和state。当state是基于props进行设置的时候，这个方法是best choice。因此如果有需要，建议在这里调用setState。</li>
 <li>同其他的componentWill 的方法一样，这个方法会在render之前被调用多次，因此还是不要进行一些有副作用的方法的调用。如AJAX。</li>
 </ul>
-<p>###render渲染</p>
-<p>render a component</p>
-<p>###componentDidUpdate(prevProps, prevState, prevContext)</p>
-<ul>
+<h3 id="render渲染"><a href="#render渲染" class="headerlink" title="render渲染"></a>render渲染</h3><p>render a component</p>
+<h3 id="componentDidUpdate-prevProps-prevState-prevContext"><a href="#componentDidUpdate-prevProps-prevState-prevContext" class="headerlink" title="componentDidUpdate(prevProps, prevState, prevContext)"></a>componentDidUpdate(prevProps, prevState, prevContext)</h3><ul>
 <li><p>当一个component渲染之后被调用。在这个方法执行到的时候，可以保证当前组件以及其子组件也全部被渲染完了。</p>
 </li>
 <li><p>由于这个方法可以保证在re-render的生命周期中只调用一次，所以一些有副作用的操作在最好这里被调用。例如ajax。在使用之前最好手动进行比较是否需要进行操作。</p>
@@ -159,12 +146,12 @@
 </li>
 </ul>
 <h3 id="componentDidCatch-errorString-errorInfo"><a href="#componentDidCatch-errorString-errorInfo" class="headerlink" title="componentDidCatch(errorString, errorInfo)"></a>componentDidCatch(errorString, errorInfo)</h3><ul>
-<li>react16新加的生命周期方法。他作用于子组件的uncaught error。 </li>
-</ul>
-<figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">componentDidCatch(errorString, errorInfo) &#123;</span><br><span class="line">  <span class="keyword">this</span>.setState(&#123;</span><br><span class="line">    error: errorString</span><br><span class="line">  &#125;);</span><br><span class="line">  ErrorLoggingTool.log(errorInfo);</span><br><span class="line">&#125;</span><br><span class="line">render() &#123;</span><br><span class="line">  <span class="keyword">if</span>(<span class="keyword">this</span>.state.error) <span class="keyword">return</span> <span class="xml"><span class="tag">&lt;<span class="name">ShowErrorMessage</span> <span class="attr">error</span>=<span class="string">&#123;this.state.error&#125;</span> /&gt;</span></span></span><br><span class="line"><span class="xml">  return (</span></span><br><span class="line"><span class="xml">    // render normal component output</span></span><br><span class="line"><span class="xml">  );</span></span><br><span class="line"><span class="xml">&#125;</span></span><br></pre></td></tr></table></figure>
-<ul>
-<li>errorString: error.toString()</li>
-<li>errorInfo: 一个object 形如 <code>{componentStack: ...}</code></li>
+<li><p>react16新加的生命周期方法。他作用于子组件的uncaught error。 </p>
+  <figure class="highlight js"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">componentDidCatch(errorString, errorInfo) &#123;</span><br><span class="line">  <span class="keyword">this</span>.setState(&#123;</span><br><span class="line">    error: errorString</span><br><span class="line">  &#125;);</span><br><span class="line">  ErrorLoggingTool.log(errorInfo);</span><br><span class="line">&#125;</span><br><span class="line">render() &#123;</span><br><span class="line">  <span class="keyword">if</span>(<span class="keyword">this</span>.state.error) <span class="keyword">return</span> <span class="xml"><span class="tag">&lt;<span class="name">ShowErrorMessage</span> <span class="attr">error</span>=<span class="string">&#123;this.state.error&#125;</span> /&gt;</span></span></span><br><span class="line"><span class="xml">  return (</span></span><br><span class="line"><span class="xml">    // render normal component output</span></span><br><span class="line"><span class="xml">  );</span></span><br><span class="line"><span class="xml">&#125;</span></span><br></pre></td></tr></table></figure></li>
+<li><p>errorString: error.toString()</p>
+</li>
+<li><p>errorInfo: 一个object 形如 <code>{componentStack: ...}</code></p>
+</li>
 </ul>
 <h3 id="componentDidMount"><a href="#componentDidMount" class="headerlink" title="componentDidMount"></a>componentDidMount</h3><ul>
 <li>在整个生命周期中只会被调用一次。他被调用的时候证明当前组件及其子组件都已经被渲染完成。</li>
@@ -195,7 +182,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="http://yoursite.com/2019/11/26/React%20lifecycle/" data-id="ck3fdrlth0001xptgcu8j7uop" class="article-share-link">Share</a>
+      <a data-url="http://yoursite.com/2019/11/26/React%20lifecycle/" data-id="ck3fe1ts500000qtg9nti29vk" class="article-share-link">Share</a>
       
       
     </footer>
