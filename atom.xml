@@ -6,7 +6,7 @@
   <link href="/atom.xml" rel="self"/>
   
   <link href="http://yoursite.com/"/>
-  <updated>2019-11-26T15:12:43.820Z</updated>
+  <updated>2019-11-26T15:10:36.896Z</updated>
   <id>http://yoursite.com/</id>
   
   <author>
@@ -15,28 +15,6 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
-  
-  <entry>
-    <title>2019-11-26</title>
-    <link href="http://yoursite.com/2019/11/26/2019-11-26/"/>
-    <id>http://yoursite.com/2019/11/26/2019-11-26/</id>
-    <published>2019-11-26T15:05:30.334Z</published>
-    <updated>2019-11-26T15:12:43.820Z</updated>
-    
-    <content type="html"><![CDATA[<h1 id=""><a href="#" class="headerlink" title=""></a></h1>]]></content>
-    
-    <summary type="html">
-    
-      
-      
-        &lt;h1 id=&quot;&quot;&gt;&lt;a href=&quot;#&quot; class=&quot;headerlink&quot; title=&quot;&quot;&gt;&lt;/a&gt;&lt;/h1&gt;
-      
-    
-    </summary>
-    
-    
-    
-  </entry>
   
   <entry>
     <title>React lifecycle</title>
