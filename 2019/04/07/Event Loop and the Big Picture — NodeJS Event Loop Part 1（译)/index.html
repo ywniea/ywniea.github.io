@@ -1,0 +1,100 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="content-type" content="text/html; charset=utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0" name="viewport"><meta content="yes" name="apple-mobile-web-app-capable"><meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"><meta content="telephone=no" name="format-detection"><meta name="description" content=""><title>Event Loop and the Big Picture — NodeJS Event Loop Part 1（译） | Ywinea's blog</title><link rel="stylesheet" type="text/css" href="/css/style.css?v=0.0.0"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/normalize/8.0.1/normalize.min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/pure-min.css"><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/pure/1.0.0/grids-responsive-min.css"><link rel="stylesheet" href="//lib.baomitu.com/font-awesome/4.7.0/css/font-awesome.min.css"><script type="text/javascript" src="//lib.baomitu.com/jquery/3.4.0/jquery.min.js"></script><link rel="icon" mask="" sizes="any" href="/favicon.ico"><link rel="Shortcut Icon" type="image/x-icon" href="/favicon.ico"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="apple-touch-icon-precomposed" href="/apple-touch-icon.png"><link rel="alternate" type="application/atom+xml" href="/atom.xml"><meta name="generator" content="Hexo 4.0.0"></head><body><div class="body_container"><div id="header"><div class="site-name"><h1 class="hidden">Event Loop and the Big Picture — NodeJS Event Loop Part 1（译）</h1><a id="logo" href="/.">Ywinea's blog</a><p class="description"></p></div><div id="nav-menu"><a class="current" href="/."><i class="fa fa-home"> Home</i></a><a href="/archives/"><i class="fa fa-archive"> Archive</i></a><a href="/about/"><i class="fa fa-user"> About</i></a><a href="/atom.xml"><i class="fa fa-rss"> RSS</i></a></div></div><div class="pure-g" id="layout"><div class="pure-u-1 pure-u-md-3-4"><div class="content_container"><div class="post"><h1 class="post-title">Event Loop and the Big Picture — NodeJS Event Loop Part 1（译）</h1><div class="post-meta">Apr 7, 2019<span> | </span><span class="category"><a href="/categories/JavaScript/">JavaScript</a></span></div><div class="post-content"><p>原文：<a href="https://blog.insiderattack.net/event-loop-and-the-big-picture-nodejs-event-loop-part-1-1cb67a182810" target="_blank" rel="noopener">https://blog.insiderattack.net/event-loop-and-the-big-picture-nodejs-event-loop-part-1-1cb67a182810</a> 作者：Deepal Jayasekara</p>
+<p>NodeJS处理I/O的方式使它与其他的编程语言泾渭分明。我们所知的NodeJS，它是一个「基于google v8 JavaScript引擎的非阻塞、事件驱动平台」。什么是「非阻塞」、「事件驱动」？答案就是Event loop。这是第一篇文章，我会介绍NodeJS如何工作、如何访问I/O、如何与其他平台进行交互等等。</p>
+<a id="more"></a>
+
+<p>这个系列的文章有6篇：</p>
+<ul>
+<li>Event Loop and the Big Picture (This article)</li>
+<li>Timers, Immediates and Next Ticks</li>
+<li>Promises, Next-Ticks, and Immediates</li>
+<li>Handling I/O</li>
+<li>Event Loop Best Practices</li>
+<li>New changes to timers and microtasks in Node v11</li>
+</ul>
+<h3 id="Reactor-Pattern"><a href="#Reactor-Pattern" class="headerlink" title="Reactor Pattern"></a>Reactor Pattern</h3><p>NodeJS采用一种事件驱动的工作模式，包括一个事件多路管理器(Event Demultiplexer)和一个事件队列(Event Queue)。所有的I/O请求最终都会得到一个完成或者是失败的事件，或者作为触发器触发别的事件。我们把这些都叫做Event。这些Event会根据下面的算法进行处理：</p>
+<ol>
+<li>Event Demultiplexer会收到I/O请求，并把他们委托给相应的硬件系统。</li>
+<li>当I/O请求处理完毕（例如准备好读取某文件、读取某个接口的数据准备完成等等）Event Demultiplexer就会把注册在相应的I/O事件上的回调函数加入到一个队列里面等待执行。这些回调函数就叫做Events，他们加入的那个队列叫做Event Queue。</li>
+<li>当Event Queue里面的Event可以执行的时候，就会分别按照他们加入的顺序执行他们，直到Event Queue为空。</li>
+<li>如果Event Queue里面没有Event了，或者Event Demultiplexer没有正在处理的请求了，这个过程就执行完了。否则，会从第1步重新开始。</li>
+</ol>
+<p>执行整个过程的程序就叫做Event loop。</p>
+<p><img src="/media/15767359167758.jpg" alt=""></p>
+<p>Event loop是一个单线程、半永久的循环。之所以说他是半永久是因为在没有工作做的时候它会退出这个循环。</p>
+<p>上面这个图是一个描述NodeJS如何工作的概略图，它展示了名为Reactor Pattern的设计模式的主要部分。</p>
+<h3 id="Event-Demultiplexer"><a href="#Event-Demultiplexer" class="headerlink" title="Event Demultiplexer"></a>Event Demultiplexer</h3><p>上文提到的Event Demultiplexer并不是一个真是世界存在的概念，它是一个reactor pattern里面抽象出来的概念。Event demultiplexer已经在不同的系统里面被实现了，他们拥有不同的名字。例如Linux里面的epoll，BSD systems (MacOS)里的kqueue，Solaris里面的Event ports，IOCP (Input Output Completion Port) in Windows等等。NodeJS就会消费由这些实现所提供的底层的非阻塞异步硬件I/O功能。</p>
+<h4 id="Complexities-in-File-I-O-amp-in-DNS-amp-solution-复杂之处-amp-解决"><a href="#Complexities-in-File-I-O-amp-in-DNS-amp-solution-复杂之处-amp-解决" class="headerlink" title="Complexities in File I/O &amp; in DNS &amp; solution 复杂之处 &amp; 解决"></a>Complexities in File I/O &amp; in DNS &amp; solution 复杂之处 &amp; 解决</h4><p>但是这些实现并不能处理所有的I/O类型。即使是在同一个操作系统中，支持不同种类的I/O请求也是相当复杂的。通常来说，网络I/O请求可以用刚刚说的epoll, kqueue, event ports and IOCP等等来进行非阻塞处理，但是文件I/O请求更为复杂。在某些特定的操作系统中，像是Linux，不支持对文件系统进行完全异步的访问。MacOS的kqueue也在处理文件系统的事件通知/信号方面存在短板。</p>
+<p>类似于文件I/O请求，NodeJS API提供的dns方法也有类似的复杂之处。</p>
+<p>总之，对于那些无法通过epoll/kqueue/event ports/IOCP提供的硬件异步I/O来解决的I/O功能，引入了thread pool。</p>
+<p>现在我们知道了，NodeJS会尽量用其他系统提供的epoll/kqueue/event ports/IOCP的非阻塞硬件I/O机制来处理I/O请求，但是对于一些阻塞的复杂的I/O请求，就会用thread pool。</p>
+<h4 id="Libuv"><a href="#Libuv" class="headerlink" title="Libuv"></a>Libuv</h4><p>事实上，要在所有不同的操作系统中，支持所有不同种类的I/O请求（文件I/O请求、网络I/O请求、DNS等）是非常困难的。一些I/O请求可以用一些原生实现的硬件系统来处理，并能确保完全异步。其他的某些特定I/O请求只能用thread pool才能确保异步执行。</p>
+<blockquote>
+<p>并不是像大部分开发者认为的那样，NodeJS将所有的I/O请求都用线程池来处理。这是错误的观点。</p>
+</blockquote>
+<p>要支持跨平台的I/O事件，管理整个流程，需要有一个抽象层，它能够封装这些跨平台事件和各个平台内的复杂性，并且暴露统一的API给上层的Node。它就是libuv。</p>
+<p>Libuv是一个为NodeJS编写的支持跨平台的库，它是围绕事件驱动异步I/O模型设计出来的。</p>
+<blockquote>
+<p>The library provides much more than a simple abstraction over different I/O polling mechanisms: ‘handles’ and ‘streams’ provide a high level abstraction for sockets and other entities; cross-platform file I/O and threading functionality is also provided, amongst other things.</p>
+</blockquote>
+<p><img src="/media/15767359673784.jpg" alt=""></p>
+<p>现在我们直到了Event Demultiplexer是一个被libuv抽象过的处理I/O事件的API的集合，并且将接口暴露给上层NodeJS.但是libuv不仅仅给NodeJS提供event demultiplexer，它给NodeJS还提供Event Queue机制。</p>
+<h3 id="Event-Queue"><a href="#Event-Queue" class="headerlink" title="Event Queue"></a>Event Queue</h3><p>Event Queue应该是一个数据模型，在这里所有的event被加入队列中，等待事件轮询机制分别去执行他们，直到Event Queue变为空。但是这在NodeJS中和那个抽象的Reactor Pattern中所描述的是完全不一样的。怎么不一样呢？</p>
+<blockquote>
+<p>在NodeJS中有不止一个queue，不同类型的event会加入到他们自己的event queue中。</p>
+</blockquote>
+<blockquote>
+<p>当一个阶段执行完毕之后，在进行下一个阶段之前，NodeJS会去执行两个intermediate queues(中间队列),直到中间队列为空</p>
+</blockquote>
+<p>那么到底有多少个队列？什么是中间队列？</p>
+<p>原生的libuv可以对以下四种类型的队列进行事件轮询处理：</p>
+<ul>
+<li>Expired timers and intervals queue — 包括到时间的定时器setTimeout设置的回调函数。由setInterval设置的间隔回调函数。</li>
+<li>IO Events Queue — Completed IO events</li>
+<li>Immediates Queue — 由setImmediate 设置的回调函数</li>
+<li>Close Handlers Queue— Any close event handlers.</li>
+</ul>
+<blockquote>
+<p>尽管我们把这些都叫做queue，但是并不是说明他们在数据结构上就都是队列。例如timers就是存储在一个最小堆里面。</p>
+</blockquote>
+<p>除了这四种主要的队列，还有两种中间队列，尽管他们并不是由libuv提供的，但是他们是NodeJS的一部分。</p>
+<p>Intermediate queues：</p>
+<ul>
+<li>Next Ticks Queue — 由 process.nextTick 设置的回调函数</li>
+<li>Other Microtasks Queue — 包括其他的一些microtasks，例如resolved的promise的回调函数</li>
+</ul>
+<h4 id="他们怎样工作？"><a href="#他们怎样工作？" class="headerlink" title="他们怎样工作？"></a>他们怎样工作？</h4><p>看下图。Node从timer queue开始进行event loop。最开始会去检查有没有到时间的定时器，然后每一步都依次检查每个队列，并且统计维护需要处理的event的引用计数。如果这些队列中没有需要处理的项目，并且没有正在处理的操作，这个event loop就会跳出轮询。处理每个队列里面的event可以看作是event loop的一个阶段。</p>
+<p><img src="/media/15767359917146.jpg" alt=""></p>
+<blockquote>
+<p>一个阶段：原文中用的是phase，我认为作者说的一个phase，就是轮询完一种队列（例如immediate queue）。move to next phase指的是在libuv提供支持的四种类型的队列之间轮询，从一个队列移动到下一个队列。<br>后文中有提到：timers queue, IO events queue, immediates queue, close handlers queue are the four main phases.</p>
+</blockquote>
+<p>在event loop执行完一个阶段(phase)之后，会去检查途中红色的两个中间队列有没有需要处理的项目（event），如果有的话，event loop会立刻处理这两个队列里面的event，直到两个队列为空。然后event loop才会开始下一个阶段。</p>
+<blockquote>
+<p>例如，event loop当前正在处理immediate queue里面的5个任务，同时有两个任务添加到了next tick queue中。一旦event loop完成了immediate queue中的5个任务的处理，他就会检测到next tick queue中有两个任务需要处理啦！那么event loop就会先去处理next tick queue中所有的任务，然后在移动到下一阶段–close handlers queue。</p>
+</blockquote>
+<h4 id="Next-tick-queue-vs-Other-Microtasks"><a href="#Next-tick-queue-vs-Other-Microtasks" class="headerlink" title="Next tick queue vs Other Microtasks"></a>Next tick queue vs Other Microtasks</h4><p>Next tick queue相对于其他的Micro task有更高的优先级。尽管他们都是在event loop的两个阶段之间被处理。就是说，在event loop开始处理microtask queue中resolved promise之前，next tick queue 就肯定是空的啦！</p>
+<blockquote>
+<p>next tick queue执行的优先级高于resolved promise只适用于基于v8的JS。如果使用<code>q</code>或者<code>bluebird</code>库，那么结果就会完全不一样。</p>
+</blockquote>
+<p>这些Intermediate queue导致了一个新的问题：IO饥饿。例如，如果我们大量的用<code>process.nextTick</code>方法来不断的填充next tick queue，event loop将会一直执行next tick queue中的大量任务而不再移动到下个阶段。这将会导致IO饥饿，因为event loop在清空next tick queue中的任务之前不会进行下一步。</p>
+<blockquote>
+<p>为了避免这个问题可以使用<code>process.maxTickDepth</code>对next tick queue设置一个数量上限。但是这个参数从 NodeJS v0.12 就因为某些原因被移出了。</p>
+</blockquote>
+<p>最后让我们来看一下libuv在NodeJS的框架中处于什么位置：</p>
+<p><img src="/media/15767360261691.jpg" alt=""></p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><p>这是系列的第一篇文章，文章指出了NodeJS实现跨平台的事件驱动异步IO模型的复杂之处，从而引出了libuv。libuv是为NodeJS量身定做的支持多平台的异步IO库。</p>
+<p>libuv封装了各个平台内部的复杂之处，实现了基于epoll, kqueue, IOCP, event接口的事件轮询机制，提供了异步DNS的解决方案，实现了thread pool，实现了异步文件IO机制等等。</p>
+<p>总之，NodeJS的event loop就是由libuv库在底层做支持的。libuv为NodeJS的event loop提供了两个东西：Event Demultiplexer和Event Queue。</p>
+<p>其中由libuv提供支持的event queue主要分为4种：</p>
+<ul>
+<li>Expired timers and intervals queue</li>
+<li>IO Events Queue</li>
+<li>Immediates Queue</li>
+<li>Close Handlers Queue</li>
+</ul>
+<p>除了这四种，NodeJS还自己实现了两种Intermediate queue：</p>
+<ul>
+<li>Next Ticks Queue </li>
+<li>Other Microtasks Queue </li>
+</ul>
+<p>好了，这篇文章先到这里。接下来要详细对每个queue进行讲解。</p>
+</div><div class="tags"><a href="/tags/Node-js/">Node.js</a></div><div class="post-nav"><a class="pre" href="/2019/05/05/Grid%E5%B8%83%E5%B1%80/">Grid布局</a><a class="next" href="/2018/10/11/throttle-and-debounce/">throttle and debounce</a></div></div></div></div><div class="pure-u-1-4 hidden_mid_and_down"><div id="sidebar"><div class="widget"><form class="search-form" action="//www.google.com/search" method="get" accept-charset="utf-8" target="_blank"><input type="text" name="q" maxlength="20" placeholder="Search"/><input type="hidden" name="sitesearch" value="https://github.com/ywniea"/></form></div><div class="widget"><div class="widget-title"><i class="fa fa-folder-o"> Categories</i></div><ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/CSS/">CSS</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/JavaScript/">JavaScript</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/Other/">Other</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/React/">React</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-star-o"> Tags</i></div><div class="tagcloud"><a href="/tags/JavaScript/" style="font-size: 15px;">JavaScript</a> <a href="/tags/Flex/" style="font-size: 15px;">Flex</a> <a href="/tags/Other/" style="font-size: 15px;">Other</a> <a href="/tags/Grid/" style="font-size: 15px;">Grid</a> <a href="/tags/React-lifecycle/" style="font-size: 15px;">React lifecycle</a> <a href="/tags/Node-js/" style="font-size: 15px;">Node.js</a> <a href="/tags/React-memo/" style="font-size: 15px;">React memo</a></div></div><div class="widget"><div class="widget-title"><i class="fa fa-file-o"> Recent</i></div><ul class="post-list"><li class="post-list-item"><a class="post-list-link" href="/2019/05/05/Grid%E5%B8%83%E5%B1%80/">Grid布局</a></li><li class="post-list-item"><a class="post-list-link" href="/2019/04/07/Event%20Loop%20and%20the%20Big%20Picture%20%E2%80%94%20NodeJS%20Event%20Loop%20Part%201%EF%BC%88%E8%AF%91)/">Event Loop and the Big Picture — NodeJS Event Loop Part 1（译）</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/10/11/throttle-and-debounce/">throttle and debounce</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/06/15/%E7%BB%A7%E6%89%BF-vs-%E8%A1%8C%E4%B8%BA%E5%A7%94%E6%89%98/">继承 vs 行为委托</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/06/09/this-in-JS/">this in JS</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/06/08/Deep-clone-in-JS/">Deep clone in JS</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/03/21/React%20lifecycle/">React lifecycle</a></li><li class="post-list-item"><a class="post-list-link" href="/2018/01/09/React-memo/">React memo</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/11/08/Flexbox/">Flexbox</a></li><li class="post-list-item"><a class="post-list-link" href="/2017/09/29/Hexo%20&%20Github%20Pages%20&%20bash/">Hexo & Github Pages & bash</a></li></ul></div><div class="widget"><div class="widget-title"><i class="fa fa-external-link"> Links</i></div><ul></ul><a href="https://www.github.com/ywniea" title="github" target="_blank">github</a></div></div></div><div class="pure-u-1 pure-u-md-3-4"><div id="footer">Copyright © 2019 <a href="/." rel="nofollow">Ywinea's blog.</a> Powered by<a rel="nofollow" target="_blank" href="https://hexo.io"> Hexo.</a><a rel="nofollow" target="_blank" href="https://github.com/tufu9441/maupassant-hexo"> Theme</a> by<a rel="nofollow" target="_blank" href="https://github.com/pagecho"> Cho.</a></div></div></div><a class="show" id="rocket" href="#top"></a><script type="text/javascript" src="/js/totop.js?v=0.0.0" async></script><script type="text/javascript" src="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js" async></script><script type="text/javascript" src="/js/fancybox.js?v=0.0.0" async></script><link rel="stylesheet" type="text/css" href="//lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css"><script type="text/javascript" src="/js/codeblock-resizer.js?v=0.0.0"></script><script type="text/javascript" src="/js/smartresize.js?v=0.0.0"></script></div></body></html>
