@@ -27,10 +27,7 @@
     
     <summary type="html">
     
-      
-      
-        {{ short_content }}
-      
+      {{ post.excerpt }}
     
     </summary>
     
